@@ -1,0 +1,117 @@
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ─── Build outputs ───────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+out/
+.vite/
+
+# ─── Environment variables ───────────────────────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyd
+*.pyo
+.Python
+venv/
+env/
+ENV/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg
+*.egg-info/
+dist/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+share/python-wheels/
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytestdebug.log
+
+# ─── TypeScript ──────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─── Editor / IDE ─────────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# ─── PWA / Service Worker ────────────────────────────────────────────────────
+sw.js
+workbox-*.js
+dev-dist/
+
+# ─── Testing ─────────────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Package managers ────────────────────────────────────────────────────────
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnpm-store/
+package-lock.json
+
+# ─── Docker ──────────────────────────────────────────────────────────────────
+.dockerignore
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+*.local
+.turbo/
+.next/
+.nuxt/
