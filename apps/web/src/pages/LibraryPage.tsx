@@ -1,20 +1,27 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { BookOpen, Clock, Bookmark, PenLine, Plus, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import StoryRow from '@/components/discovery/StoryRow'
-import { Skeleton } from '@/components/ui/skeleton'
-import { storiesApi, progressApi } from '@/lib/api'
+import { storiesApi } from '@/lib/api'
 import type { StoryListItem } from '@/types'
 
 type Tab = 'reading' | 'bookmarks' | 'my-stories'
 
 export default function LibraryPage() {
-  const [tab, setTab] = useState<Tab>('reading')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as Tab) ?? 'reading'
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [stories, setStories] = useState<StoryListItem[]>([])
   const [myStories, setMyStories] = useState<StoryListItem[]>([])
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const nextTab = searchParams.get('tab') as Tab | null
+    if (nextTab && nextTab !== tab) setTab(nextTab)
+    if (!nextTab && tab !== 'reading') setTab('reading')
+  }, [searchParams, tab])
 
   useEffect(() => {
     const load = async () => {
@@ -52,7 +59,13 @@ export default function LibraryPage() {
         {tabs.map(({ id, icon: Icon, label }) => (
           <button
             key={id}
-            onClick={() => setTab(id)}
+            onClick={() => {
+              setTab(id)
+              setSearchParams((params) => {
+                params.set('tab', id)
+                return params
+              })
+            }}
             className={`flex items-center gap-2 py-3 px-4 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === id
                 ? 'border-crail text-crail'

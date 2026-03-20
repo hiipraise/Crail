@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, TrendingUp, Star, Sparkles } from "lucide-react";
+import { ArrowRight, TrendingUp, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StoryCard from "@/components/discovery/StoryCard";
 import StoryCardSkeleton from "@/components/discovery/StoryCardSkeleton";
@@ -9,6 +9,23 @@ import StoryRow from "@/components/discovery/StoryRow";
 import { storiesApi } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import type { StoryListItem } from "@/types";
+
+function SectionEmptyState({ title, description, ctaLabel, ctaHref }: {
+  title: string
+  description: string
+  ctaLabel: string
+  ctaHref: string
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-cloudy-200 bg-white/70 px-6 py-10 text-center">
+      <p className="font-serif text-lg text-foreground">{title}</p>
+      <p className="mt-2 text-sm text-cloudy-400">{description}</p>
+      <Link to={ctaHref} className="inline-flex mt-4">
+        <Button variant="outline">{ctaLabel}</Button>
+      </Link>
+    </div>
+  )
+}
 
 export default function HomePage() {
   const { isAuthenticated, user } = useAuthStore();
@@ -103,10 +120,21 @@ export default function HomePage() {
             ? Array.from({ length: 4 }).map((_, i) => (
                 <StoryCardSkeleton key={i} />
               ))
-            : featured.map((story, i) => (
-                <StoryCard key={story._id} story={story} index={i} />
-              ))}
+            : featured.length > 0
+              ? featured.map((story, i) => (
+                  <StoryCard key={story._id} story={story} index={i} />
+                ))
+              : null}
         </div>
+
+        {!loading && featured.length === 0 && (
+          <SectionEmptyState
+            title="No featured stories yet"
+            description="Featured picks will appear here once editors spotlight new reads."
+            ctaLabel="Browse latest stories"
+            ctaHref="/explore?sort=newest"
+          />
+        )}
       </section>
 
       {/* Trending */}
@@ -132,17 +160,28 @@ export default function HomePage() {
                   className="h-24 rounded-xl bg-white border border-cloudy-200 shimmer"
                 />
               ))
-            : trending
-                .slice(0, 5)
-                .map((story, i) => (
-                  <StoryRow
-                    key={story._id}
-                    story={story}
-                    index={i}
-                    rank={i + 1}
-                  />
-                ))}
+            : trending.length > 0
+              ? trending
+                  .slice(0, 5)
+                  .map((story, i) => (
+                    <StoryRow
+                      key={story._id}
+                      story={story}
+                      index={i}
+                      rank={i + 1}
+                    />
+                  ))
+              : null}
         </div>
+
+        {!loading && trending.length === 0 && (
+          <SectionEmptyState
+            title="Nothing is trending right now"
+            description="Check back soon or explore freshly updated stories from the community."
+            ctaLabel="Explore trending alternatives"
+            ctaHref="/explore?sort=popular"
+          />
+        )}
       </section>
     </div>
   );

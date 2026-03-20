@@ -13,12 +13,12 @@ export default function AppShell() {
     <div className="min-h-screen bg-pampas flex flex-col">
       <SiteHeader />
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 md:items-start">
         {/* Desktop nav — right drawer */}
         <DesktopNav isOpen={isNavOpen} />
 
         {/* Main content */}
-        <main className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0 md:min-h-[calc(100vh-3.5rem)]">
           <Outlet />
         </main>
       </div>
