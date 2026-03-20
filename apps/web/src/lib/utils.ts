@@ -61,12 +61,12 @@ export function getPageContent(content: string, page: number, charsPerPage = 280
   return content.slice(start, start + charsPerPage)
 }
 
-export function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
+export function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
   let timer: ReturnType<typeof setTimeout>
-  return ((...args: unknown[]) => {
+  return (...args: Parameters<T>) => {
     clearTimeout(timer)
     timer = setTimeout(() => fn(...args), ms)
-  }) as T
+  }
 }
 
 export function getGenreColor(genre: string): string {

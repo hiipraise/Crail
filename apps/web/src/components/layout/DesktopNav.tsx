@@ -1,4 +1,4 @@
-import { NavLink, Link } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Home, Compass, BookOpen, PenLine, User, LogOut,
@@ -30,7 +30,15 @@ interface Props {
 }
 
 export default function DesktopNav({ isOpen }: Props) {
+  const location = useLocation()
   const { user, isAuthenticated, logout } = useAuthStore()
+
+  const isNavItemActive = (to: string) => {
+    const [pathname, search = ''] = to.split('?')
+    if (location.pathname !== pathname) return false
+    if (!search) return location.search === ''
+    return location.search === `?${search}`
+  }
 
   return (
     <AnimatePresence>
@@ -41,7 +49,7 @@ export default function DesktopNav({ isOpen }: Props) {
           animate={{ width: 260, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="site-nav hidden md:flex flex-col border-r border-cloudy-200 bg-white/80 backdrop-blur-sm overflow-hidden shrink-0"
+          className="site-nav hidden md:flex md:sticky md:top-14 md:h-[calc(100vh-3.5rem)] flex-col border-r border-cloudy-200 bg-white/80 backdrop-blur-sm overflow-hidden shrink-0"
         >
           <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
             {/* Main nav */}
@@ -53,10 +61,10 @@ export default function DesktopNav({ isOpen }: Props) {
                 key={to}
                 to={to}
                 end={to === '/'}
-                className={({ isActive }) =>
+                className={() =>
                   cn(
                     'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                    isActive
+                    isNavItemActive(to)
                       ? 'bg-crail-50 text-crail'
                       : 'text-foreground'
                   )
@@ -78,10 +86,10 @@ export default function DesktopNav({ isOpen }: Props) {
                     key={to}
                     to={to}
                     end={to === '/write'}
-                    className={({ isActive }) =>
+                    className={() =>
                       cn(
                         'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        isActive
+                        isNavItemActive(to)
                           ? 'bg-crail-50 text-crail'
                           : 'text-foreground'
                       )

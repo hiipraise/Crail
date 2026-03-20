@@ -48,6 +48,19 @@ export default function WriterPage() {
     load().catch(() => {})
   }, [storyId])
 
+  const loadChapter = async (chapterId: string) => {
+    if (!storyId) return
+    try {
+      const { data } = await chaptersApi.get(storyId, chapterId)
+      setActiveChapterId(data._id)
+      setTitle(data.title)
+      setContent(data.content)
+      setWordCount(data.wordCount)
+    } catch {
+      addToast({ title: 'Failed to load chapter', variant: 'error' })
+    }
+  }
+
   const saveChapter = debounce(async () => {
     if (!storyId || !activeChapterId) return
     setSaving(true)
@@ -74,10 +87,12 @@ export default function WriterPage() {
         title: `Chapter ${chapters.length + 1}`,
         content: ''
       })
-      setChapters([...chapters, data])
+      setChapters((prev) => [...prev, data])
       setActiveChapterId(data._id)
       setTitle(data.title)
-      setContent('')
+      setContent(data.content ?? '')
+      setWordCount(data.wordCount ?? 0)
+      addToast({ title: 'Chapter created', variant: 'success' })
     } catch {
       addToast({ title: 'Failed to create chapter', variant: 'error' })
     }
@@ -190,8 +205,7 @@ export default function WriterPage() {
               <button
                 key={ch._id}
                 onClick={() => {
-                  setActiveChapterId(ch._id)
-                  setTitle(ch.title)
+                  loadChapter(ch._id)
                 }}
                 className={`w-full text-left px-3 py-2 text-sm transition-colors ${
                   activeChapterId === ch._id
