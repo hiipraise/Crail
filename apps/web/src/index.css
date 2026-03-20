@@ -4,27 +4,7 @@
 
 @layer base {
   :root {
-    --background: 45 20% 95%;
-    --foreground: 25 15% 20%;
-    --card: 45 20% 97%;
-    --card-foreground: 25 15% 20%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 25 15% 20%;
-    --primary: 18 55% 49%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 35 8% 67%;
-    --secondary-foreground: 25 15% 20%;
-    --muted: 40 12% 88%;
-    --muted-foreground: 25 10% 45%;
-    --accent: 45 25% 90%;
-    --accent-foreground: 18 55% 40%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 35 12% 82%;
-    --input: 35 12% 82%;
-    --ring: 18 55% 49%;
     --radius: 0.75rem;
-
     --crail: #C15F3C;
     --cloudy: #B1ADA1;
     --pampas: #F4F3EE;
@@ -32,7 +12,8 @@
   }
 
   * {
-    @apply border-border;
+    box-sizing: border-box;
+    border-color: theme('colors.cloudy.200');
   }
 
   body {
@@ -72,8 +53,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: 
-      linear-gradient(rgba(0,0,0,0.015) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(0,0,0,0.015) 1px, transparent 1px);
     background-size: 100% 1.6em;
     pointer-events: none;
     border-radius: inherit;
@@ -96,9 +76,9 @@
   }
 
   .highlight-yellow { background-color: #FFF176; }
-  .highlight-green { background-color: #CCFF90; }
-  .highlight-pink { background-color: #FF80AB33; }
-  .highlight-blue { background-color: #82B1FF33; }
+  .highlight-green  { background-color: #CCFF90; }
+  .highlight-pink   { background-color: #FF80AB33; }
+  .highlight-blue   { background-color: #82B1FF33; }
 
   .shimmer {
     background: linear-gradient(90deg, #E8E7E0 25%, #F4F3EE 50%, #E8E7E0 75%);
@@ -108,9 +88,10 @@
 }
 
 @layer utilities {
-  .text-balance { text-wrap: balance; }
+  .text-balance   { text-wrap: balance; }
   .scrollbar-hide { scrollbar-width: none; }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .pb-safe        { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
 
 /* Focus mode */
@@ -121,7 +102,6 @@
   pointer-events: none;
   transition: opacity 0.3s ease;
 }
-
 .focus-mode:hover .site-header,
 .focus-mode:hover .site-nav,
 .focus-mode:hover .reader-controls {

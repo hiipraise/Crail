@@ -1,23 +1,30 @@
+import hashlib
+import base64
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from config import settings
 from database import get_db
 from bson import ObjectId
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
+def _prehash(password: str) -> bytes:
+    """SHA-256 → base64, always 44 chars — safely under bcrypt's 72-byte cap."""
+    digest = hashlib.sha256(password.encode()).digest()
+    return base64.b64encode(digest)
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(_prehash(password), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(_prehash(plain), hashed.encode())
 
 
 def create_token(user_id: str) -> str:

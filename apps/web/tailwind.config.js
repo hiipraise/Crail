@@ -7,6 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        // ── Brand ──────────────────────────────────────────────
         crail: {
           DEFAULT: '#C15F3C',
           50:  '#FBF0EB',
@@ -36,6 +37,24 @@ export default {
         pampas: {
           DEFAULT: '#F4F3EE',
           dark:    '#E8E7E0'
+        },
+        // ── Semantic aliases (used via @apply / className) ─────
+        background:  '#F4F3EE',
+        foreground:  '#2E2822',
+        border:      '#D5D2CB',
+        input:       '#D5D2CB',
+        ring:        '#C15F3C',
+        muted: {
+          DEFAULT:    '#E8E7E0',
+          foreground: '#7D7970'
+        },
+        accent: {
+          DEFAULT:    '#F0EEE8',
+          foreground: '#9A4B2F'
+        },
+        destructive: {
+          DEFAULT:    '#DC2626',
+          foreground: '#FFFFFF'
         }
       },
       fontFamily: {
@@ -68,9 +87,9 @@ export default {
         shimmer:          'shimmer 2s linear infinite'
       },
       boxShadow: {
-        paper:    '0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06)',
+        paper:      '0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06)',
         'paper-lg': '0 4px 8px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.10)',
-        card:     '0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06)'
+        card:       '0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06)'
       }
     }
   },
