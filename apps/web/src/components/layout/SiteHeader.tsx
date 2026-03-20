@@ -25,13 +25,6 @@ export default function SiteHeader() {
         {/* Center — Logo */}
         <div className="flex-1 flex justify-center">
           <Link to="/" className="flex items-center gap-1.5">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-7 h-7 rounded-lg bg-crail flex items-center justify-center"
-            >
-              <span className="text-white text-xs font-bold font-serif">C</span>
-            </motion.div>
             <span className="font-serif text-xl font-semibold text-foreground tracking-tight">
               Crail
             </span>

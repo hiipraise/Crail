@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, 
 from typing import Optional
 from datetime import datetime
 from bson import ObjectId
-import math
+import re
 
 from database import get_db
 from utils.auth import get_current_user, get_optional_user
@@ -14,24 +14,41 @@ router = APIRouter()
 
 def build_query(q: str = None, genre: str = None, status: str = None) -> dict:
     query = {}
-    if q:
-        query["$text"] = {"$search": q}
-    if genre:
-        query["genre"] = genre
-    if status:
+    if q and q.strip():
+        # Use regex search — works without needing a text index.
+        # Case-insensitive partial match on title, description, and tags.
+        pattern = re.compile(re.escape(q.strip()), re.IGNORECASE)
+        query["$or"] = [
+            {"title": {"$regex": pattern}},
+            {"description": {"$regex": pattern}},
+            {"tags": {"$elemMatch": {"$regex": pattern}}},
+            {"genre": {"$elemMatch": {"$regex": pattern}}},
+        ]
+    if genre and genre.strip():
+        query["genre"] = {"$regex": re.compile(re.escape(genre.strip()), re.IGNORECASE)}
+    if status and status.strip():
         query["status"] = status
     return query
 
 
 def sort_key(sort: str) -> list:
     mapping = {
-        "trending": [("score", -1), ("view_count", -1)],
-        "popular": [("like_count", -1)],
-        "newest": [("created_at", -1)],
+        "trending":  [("trending_score", -1), ("view_count", -1)],
+        "popular":   [("like_count", -1)],
+        "newest":    [("created_at", -1)],
         "completed": [("updated_at", -1)],
-        "featured": [("is_featured", -1), ("view_count", -1)],
+        "featured":  [("is_featured", -1), ("view_count", -1)],
     }
     return mapping.get(sort, [("updated_at", -1)])
+
+
+async def _populate_author(db, story: dict) -> dict:
+    s = serialize_doc(story)
+    author = await db.users.find_one({"_id": ObjectId(story["author_id"])})
+    s["author"] = serialize_doc(author) if author else {}
+    if s["author"]:
+        s["author"].pop("password_hash", None)
+    return s
 
 
 @router.get("")
@@ -64,40 +81,19 @@ async def list_stories(
 
     total = await db.stories.count_documents(query)
     skip = (page - 1) * pageSize
-
     cursor = db.stories.find(query).sort(sort_key(sort)).skip(skip).limit(pageSize)
     stories = await cursor.to_list(pageSize)
-
-    # Populate author
-    result = []
-    for story in stories:
-        author = await db.users.find_one({"_id": ObjectId(story["author_id"])})
-        s = serialize_doc(story)
-        s["author"] = serialize_doc(author) if author else {}
-        if s["author"]:
-            s["author"].pop("password_hash", None)
-        result.append(s)
-
+    result = [await _populate_author(db, s) for s in stories]
     return paginate(result, total, page, pageSize)
 
 
 @router.get("/trending")
 async def trending_stories():
     db = get_db()
-    # Reddit-style scoring: score = likes / (age_hours + 2)^1.5
     stories = await db.stories.find({"is_published": True}).sort(
         [("trending_score", -1)]
     ).limit(20).to_list(20)
-
-    result = []
-    for story in stories:
-        author = await db.users.find_one({"_id": ObjectId(story["author_id"])})
-        s = serialize_doc(story)
-        s["author"] = serialize_doc(author) if author else {}
-        if s["author"]:
-            s["author"].pop("password_hash", None)
-        result.append(s)
-
+    result = [await _populate_author(db, s) for s in stories]
     return paginate(result, len(result), 1, 20)
 
 
@@ -107,16 +103,7 @@ async def featured_stories():
     stories = await db.stories.find({"is_featured": True}).sort(
         [("updated_at", -1)]
     ).limit(12).to_list(12)
-
-    result = []
-    for story in stories:
-        author = await db.users.find_one({"_id": ObjectId(story["author_id"])})
-        s = serialize_doc(story)
-        s["author"] = serialize_doc(author) if author else {}
-        if s["author"]:
-            s["author"].pop("password_hash", None)
-        result.append(s)
-
+    result = [await _populate_author(db, s) for s in stories]
     return paginate(result, len(result), 1, 12)
 
 
@@ -127,14 +114,8 @@ async def get_story(slug: str, current_user=Depends(get_optional_user)):
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
-    # Increment view count
     await db.stories.update_one({"_id": story["_id"]}, {"$inc": {"view_count": 1}})
-
-    author = await db.users.find_one({"_id": ObjectId(story["author_id"])})
-    s = serialize_doc(story)
-    s["author"] = serialize_doc(author) if author else {}
-    if s["author"]:
-        s["author"].pop("password_hash", None)
+    s = await _populate_author(db, story)
     s["view_count"] = story.get("view_count", 0) + 1
     return s
 
@@ -142,7 +123,7 @@ async def get_story(slug: str, current_user=Depends(get_optional_user)):
 @router.post("", status_code=201)
 async def create_story(
     title: str = Form(...),
-    description: str = Form(...),
+    description: str = Form(""),
     summary: str = Form(""),
     genre: str = Form(""),
     tags: str = Form(""),
@@ -192,13 +173,7 @@ async def create_story(
 
     result = await db.stories.insert_one(story_doc)
     story_doc["_id"] = result.inserted_id
-
-    # Update author story count
-    await db.users.update_one(
-        {"_id": current_user["_id"]},
-        {"$inc": {"storiesCount": 1}}
-    )
-
+    await db.users.update_one({"_id": current_user["_id"]}, {"$inc": {"storiesCount": 1}})
     return serialize_doc(story_doc)
 
 
@@ -223,20 +198,13 @@ async def update_story(
         raise HTTPException(status_code=403, detail="Not your story")
 
     updates = {"updated_at": datetime.utcnow().isoformat()}
-    if title is not None:
-        updates["title"] = title
-    if description is not None:
-        updates["description"] = description
-    if summary is not None:
-        updates["summary"] = summary
-    if genre is not None:
-        updates["genre"] = [g.strip() for g in genre.split(",") if g.strip()]
-    if tags is not None:
-        updates["tags"] = [t.strip() for t in tags.split(",") if t.strip()]
-    if status is not None:
-        updates["status"] = status
-    if content_rating is not None:
-        updates["content_rating"] = content_rating
+    if title is not None: updates["title"] = title
+    if description is not None: updates["description"] = description
+    if summary is not None: updates["summary"] = summary
+    if genre is not None: updates["genre"] = [g.strip() for g in genre.split(",") if g.strip()]
+    if tags is not None: updates["tags"] = [t.strip() for t in tags.split(",") if t.strip()]
+    if status is not None: updates["status"] = status
+    if content_rating is not None: updates["content_rating"] = content_rating
     if cover:
         data = await cover.read()
         result = await upload_image(data, "covers", story_id)
@@ -256,19 +224,13 @@ async def delete_story(story_id: str, current_user=Depends(get_current_user)):
     if str(story["author_id"]) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not your story")
 
-    # Delete story, all chapters, progress, comments
     await db.stories.delete_one({"_id": ObjectId(story_id)})
     await db.chapters.delete_many({"story_id": story_id})
     await db.progress.delete_many({"story_id": story_id})
     await db.comments.delete_many({"story_id": story_id})
     await db.versions.delete_many({"story_id": story_id})
     await db.analytics.delete_many({"story_id": story_id})
-
-    # Decrement author story count
-    await db.users.update_one(
-        {"_id": current_user["_id"]},
-        {"$inc": {"storiesCount": -1}}
-    )
+    await db.users.update_one({"_id": current_user["_id"]}, {"$inc": {"storiesCount": -1}})
     return None
 
 
@@ -279,20 +241,13 @@ async def like_story(story_id: str, current_user=Depends(get_current_user)):
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
-    liked_by = story.get("liked_by", [])
     uid = str(current_user["_id"])
-
+    liked_by = story.get("liked_by", [])
     if uid in liked_by:
-        await db.stories.update_one(
-            {"_id": story["_id"]},
-            {"$inc": {"like_count": -1}, "$pull": {"liked_by": uid}}
-        )
+        await db.stories.update_one({"_id": story["_id"]}, {"$inc": {"like_count": -1}, "$pull": {"liked_by": uid}})
         return {"liked": False}
     else:
-        await db.stories.update_one(
-            {"_id": story["_id"]},
-            {"$inc": {"like_count": 1}, "$addToSet": {"liked_by": uid}}
-        )
+        await db.stories.update_one({"_id": story["_id"]}, {"$inc": {"like_count": 1}, "$addToSet": {"liked_by": uid}})
         return {"liked": True}
 
 
@@ -301,7 +256,6 @@ async def bookmark_story(story_id: str, current_user=Depends(get_current_user)):
     db = get_db()
     uid = current_user["_id"]
     bookmarked = current_user.get("bookmarked_stories", [])
-
     if story_id in bookmarked:
         await db.users.update_one({"_id": uid}, {"$pull": {"bookmarked_stories": story_id}})
         await db.stories.update_one({"_id": ObjectId(story_id)}, {"$inc": {"bookmark_count": -1}})
@@ -320,7 +274,6 @@ async def story_analytics(story_id: str, current_user=Depends(get_current_user))
         raise HTTPException(status_code=404, detail="Not found")
     if str(story["author_id"]) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not your story")
-
     analytics = await db.analytics.find_one({"story_id": story_id}) or {}
     return serialize_doc(analytics) if analytics else {"story_id": story_id, "totalViews": story.get("view_count", 0)}
 

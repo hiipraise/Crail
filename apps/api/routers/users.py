@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, Form
 from typing import Optional
 from bson import ObjectId
+import re
 
 from database import get_db
 from utils.auth import get_current_user, get_optional_user
@@ -52,6 +53,32 @@ async def update_me(
     return u
 
 
+# ── /search MUST come before /{username} ──────────────────────────────────────
+# FastAPI matches routes in registration order. If /{username} is first,
+# GET /users/search is captured as username="search" and never reaches here.
+@router.get("/search")
+async def search_users(q: str = "", limit: int = Query(5, ge=1, le=20)):
+    """Search users by username or display name. Partial, case-insensitive."""
+    if not q.strip():
+        return {"items": []}
+    db = get_db()
+    pattern = re.compile(re.escape(q.strip()), re.IGNORECASE)
+    users = await db.users.find({
+        "$or": [
+            {"username": {"$regex": pattern}},
+            {"displayName": {"$regex": pattern}},
+        ]
+    }).limit(limit).to_list(limit)
+    result = []
+    for u in users:
+        doc = serialize_doc(u)
+        doc.pop("password_hash", None)
+        doc.pop("email", None)
+        result.append(doc)
+    return {"items": result}
+
+
+# ── Dynamic routes after all static ones ─────────────────────────────────────
 @router.get("/{username}")
 async def get_profile(username: str):
     db = get_db()
@@ -113,3 +140,4 @@ async def follow_user(username: str, current_user=Depends(get_current_user)):
         await db.users.update_one({"_id": current_user["_id"]}, {"$addToSet": {"following": tid}, "$inc": {"followingCount": 1}})
         await db.users.update_one({"_id": target["_id"]}, {"$addToSet": {"followers": uid}, "$inc": {"followersCount": 1}})
         return {"following": True}
+        

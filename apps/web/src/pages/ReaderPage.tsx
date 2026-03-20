@@ -88,9 +88,8 @@ export default function ReaderPage() {
     ? getPageContent(chapter.content, currentPage)
     : ''
 
-  const displayContent = settings.isBionicMode
-    ? applyBionicReading(pageContent)
-    : pageContent
+  // displayContent is the raw text; bionic rendering is applied inline in the HTML render below
+  const displayContent = pageContent
 
   const isBookmarked = bookmarks.some(
     (b) => b.chapterId === chapterId && b.pageNumber === currentPage
@@ -275,7 +274,38 @@ export default function ReaderPage() {
               <div
                 className={`${fontClass} text-foreground leading-relaxed`}
                 style={{ fontSize: settings.fontSize, ...lineSpacingStyle }}
-                dangerouslySetInnerHTML={{ __html: displayContent.replace(/\n\n/g, '</p><p class="mt-4">') }}
+                dangerouslySetInnerHTML={{
+                  __html: (() => {
+                    // Normalize: collapse 3+ newlines to 2, ensure single \n between text becomes \n\n
+                    const normalized = displayContent
+                      .replace(/\r\n/g, '\n')
+                      .replace(/\r/g, '\n')
+                      .replace(/\n{3,}/g, '\n\n')
+                      .replace(/([^\n])\n([^\n])/g, '$1\n\n$2')
+                      .trim()
+
+                    // Split into paragraphs on double newline
+                    const paragraphs = normalized
+                      .split(/\n\n+/)
+                      .map((p) => p.trim())
+                      .filter(Boolean)
+
+                    if (paragraphs.length === 0) return ''
+
+                    // Apply bionic reading per paragraph if enabled
+                    const rendered = paragraphs.map((p) => {
+                      const text = settings.isBionicMode
+                        ? p.replace(/\b(\w+)\b/g, (word) => {
+                            const half = Math.ceil(word.length / 2)
+                            return `<strong>${word.slice(0, half)}</strong>${word.slice(half)}`
+                          })
+                        : p
+                      return `<p class="mt-0 mb-4 last:mb-0">${text}</p>`
+                    })
+
+                    return rendered.join('')
+                  })()
+                }}
               />
 
               {/* Page number */}

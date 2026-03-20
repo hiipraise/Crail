@@ -29,15 +29,38 @@ class ScheduleRequest(BaseModel):
     scheduledAt: str
 
 
+def _try_oid(val: str):
+    """Return ObjectId if val is a valid 24-char hex, else None."""
+    try:
+        return ObjectId(val)
+    except Exception:
+        return None
+
+
+async def _resolve_story(db, story_id: str):
+    """
+    Find a story by either its MongoDB ObjectId string OR its slug.
+    Returns the story doc or None.
+    """
+    oid = _try_oid(story_id)
+    if oid:
+        story = await db.stories.find_one({"_id": oid})
+        if story:
+            return story
+    # Fallback: treat as slug
+    return await db.stories.find_one({"slug": story_id})
+
+
 @router.get("")
 async def list_chapters(story_id: str, current_user=Depends(get_optional_user)):
     db = get_db()
-    story = await db.stories.find_one({"_id": ObjectId(story_id)})
+    story = await _resolve_story(db, story_id)
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
-    query = {"story_id": story_id}
-    # Non-authors only see published chapters
+    # Always query chapters by the canonical _id string
+    canonical_id = str(story["_id"])
+    query = {"story_id": canonical_id}
     if not current_user or str(current_user["_id"]) != story.get("author_id"):
         query["is_published"] = True
 
@@ -48,22 +71,26 @@ async def list_chapters(story_id: str, current_user=Depends(get_optional_user)):
 @router.get("/{chapter_id}")
 async def get_chapter(story_id: str, chapter_id: str, current_user=Depends(get_optional_user)):
     db = get_db()
-    chapter = await db.chapters.find_one({
-        "_id": ObjectId(chapter_id),
-        "story_id": story_id
-    })
+    story = await _resolve_story(db, story_id)
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    canonical_id = str(story["_id"])
+    oid = _try_oid(chapter_id)
+    if not oid:
+        raise HTTPException(status_code=400, detail="Invalid chapter id")
+
+    chapter = await db.chapters.find_one({"_id": oid, "story_id": canonical_id})
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
-    story = await db.stories.find_one({"_id": ObjectId(story_id)})
     is_author = current_user and str(current_user["_id"]) == story.get("author_id")
-
     if not chapter.get("is_published") and not is_author:
         raise HTTPException(status_code=403, detail="Chapter not yet published")
 
-    # Get prev/next
+    # prev/next
     all_chapters = await db.chapters.find(
-        {"story_id": story_id, "is_published": True}
+        {"story_id": canonical_id, "is_published": True}
     ).sort("number", 1).to_list(500)
 
     ch_ids = [str(c["_id"]) for c in all_chapters]
@@ -72,23 +99,23 @@ async def get_chapter(story_id: str, chapter_id: str, current_user=Depends(get_o
     result = serialize_doc(chapter)
     result["previousChapter"] = ch_ids[idx - 1] if idx > 0 else None
     result["nextChapter"] = ch_ids[idx + 1] if idx < len(ch_ids) - 1 else None
-
     return result
 
 
 @router.post("", status_code=201)
 async def create_chapter(story_id: str, body: ChapterCreate, current_user=Depends(get_current_user)):
     db = get_db()
-    story = await db.stories.find_one({"_id": ObjectId(story_id)})
+    story = await _resolve_story(db, story_id)
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
     if str(story["author_id"]) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not your story")
 
+    canonical_id = str(story["_id"])
     word_count = len(body.content.split()) if body.content else 0
 
     doc = {
-        "story_id": story_id,
+        "story_id": canonical_id,
         "number": body.number,
         "title": body.title,
         "content": body.content,
@@ -104,16 +131,12 @@ async def create_chapter(story_id: str, body: ChapterCreate, current_user=Depend
     result = await db.chapters.insert_one(doc)
     doc["_id"] = result.inserted_id
 
-    # Update story word count
     await db.stories.update_one(
-        {"_id": ObjectId(story_id)},
+        {"_id": story["_id"]},
         {"$inc": {"chapter_count": 1, "word_count": word_count},
          "$set": {"updated_at": datetime.utcnow().isoformat()}}
     )
-
-    # Save version snapshot
-    await _save_version(db, story_id, str(result.inserted_id), body.content, body.title, str(current_user["_id"]))
-
+    await _save_version(db, canonical_id, str(result.inserted_id), body.content, body.title, str(current_user["_id"]))
     return serialize_doc(doc)
 
 
@@ -122,11 +145,16 @@ async def update_chapter(
     story_id: str, chapter_id: str, body: ChapterUpdate, current_user=Depends(get_current_user)
 ):
     db = get_db()
-    story = await db.stories.find_one({"_id": ObjectId(story_id)})
+    story = await _resolve_story(db, story_id)
     if not story or str(story["author_id"]) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    chapter = await db.chapters.find_one({"_id": ObjectId(chapter_id), "story_id": story_id})
+    canonical_id = str(story["_id"])
+    oid = _try_oid(chapter_id)
+    if not oid:
+        raise HTTPException(status_code=400, detail="Invalid chapter id")
+
+    chapter = await db.chapters.find_one({"_id": oid, "story_id": canonical_id})
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
@@ -138,35 +166,39 @@ async def update_chapter(
         old_wc = chapter.get("word_count", 0)
         new_wc = len(body.content.split())
         updates["word_count"] = new_wc
-        # Update story total word count
         await db.stories.update_one(
-            {"_id": ObjectId(story_id)},
+            {"_id": story["_id"]},
             {"$inc": {"word_count": new_wc - old_wc}, "$set": {"updated_at": updates["updated_at"]}}
         )
-        # Auto-save version every 10 updates (simplified)
-        await _save_version(db, story_id, chapter_id, body.content, body.title or chapter["title"], str(current_user["_id"]))
+        await _save_version(db, canonical_id, chapter_id, body.content, body.title or chapter["title"], str(current_user["_id"]))
     if body.author_note is not None:
         updates["author_note"] = body.author_note
+    if body.word_count is not None and body.content is None:
+        updates["word_count"] = body.word_count
 
-    await db.chapters.update_one({"_id": ObjectId(chapter_id)}, {"$set": updates})
-    updated = await db.chapters.find_one({"_id": ObjectId(chapter_id)})
+    await db.chapters.update_one({"_id": oid}, {"$set": updates})
+    updated = await db.chapters.find_one({"_id": oid})
     return serialize_doc(updated)
 
 
 @router.post("/{chapter_id}/publish")
 async def publish_chapter(story_id: str, chapter_id: str, current_user=Depends(get_current_user)):
     db = get_db()
-    story = await db.stories.find_one({"_id": ObjectId(story_id)})
+    story = await _resolve_story(db, story_id)
     if not story or str(story["author_id"]) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not authorized")
 
+    oid = _try_oid(chapter_id)
+    if not oid:
+        raise HTTPException(status_code=400, detail="Invalid chapter id")
+
     now = datetime.utcnow().isoformat()
     await db.chapters.update_one(
-        {"_id": ObjectId(chapter_id)},
+        {"_id": oid},
         {"$set": {"is_published": True, "published_at": now, "updated_at": now}}
     )
     await db.stories.update_one(
-        {"_id": ObjectId(story_id)},
+        {"_id": story["_id"]},
         {"$set": {"is_published": True, "last_chapter_at": now, "status": "ongoing"}}
     )
     return {"published": True, "publishedAt": now}
@@ -177,14 +209,15 @@ async def schedule_chapter(
     story_id: str, chapter_id: str, body: ScheduleRequest, current_user=Depends(get_current_user)
 ):
     db = get_db()
-    story = await db.stories.find_one({"_id": ObjectId(story_id)})
+    story = await _resolve_story(db, story_id)
     if not story or str(story["author_id"]) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    await db.chapters.update_one(
-        {"_id": ObjectId(chapter_id)},
-        {"$set": {"scheduled_at": body.scheduledAt}}
-    )
+    oid = _try_oid(chapter_id)
+    if not oid:
+        raise HTTPException(status_code=400, detail="Invalid chapter id")
+
+    await db.chapters.update_one({"_id": oid}, {"$set": {"scheduled_at": body.scheduledAt}})
     return {"scheduled": True, "scheduledAt": body.scheduledAt}
 
 
@@ -202,14 +235,21 @@ async def restore_version(
     story_id: str, chapter_id: str, version_id: str, current_user=Depends(get_current_user)
 ):
     db = get_db()
-    version = await db.versions.find_one({"_id": ObjectId(version_id)})
+    oid = _try_oid(version_id)
+    if not oid:
+        raise HTTPException(status_code=400, detail="Invalid version id")
+
+    version = await db.versions.find_one({"_id": oid})
     if not version:
         raise HTTPException(status_code=404, detail="Version not found")
 
-    await db.chapters.update_one(
-        {"_id": ObjectId(chapter_id)},
-        {"$set": {"content": version["content"], "title": version["title"], "updated_at": datetime.utcnow().isoformat()}}
-    )
+    chap_oid = _try_oid(chapter_id)
+    if chap_oid:
+        await db.chapters.update_one(
+            {"_id": chap_oid},
+            {"$set": {"content": version["content"], "title": version["title"],
+                       "updated_at": datetime.utcnow().isoformat()}}
+        )
     return {"restored": True}
 
 

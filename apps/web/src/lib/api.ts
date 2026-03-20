@@ -1,3 +1,4 @@
+// src/lib/api.ts
 import axios from 'axios'
 
 export const apiClient = axios.create({
@@ -107,6 +108,7 @@ export const aiApi = {
 }
 
 export const usersApi = {
+  search: (q: string) => apiClient.get('/users/search', { params: { q, limit: 5 } }),
   profile: (username: string) => apiClient.get(`/users/${username}`),
   stories: (username: string) => apiClient.get(`/users/${username}/stories`),
   follow: (username: string) => apiClient.post(`/users/${username}/follow`),

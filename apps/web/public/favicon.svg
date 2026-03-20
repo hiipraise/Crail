@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background -->
+  <rect x="0" y="0" width="64" height="64" rx="12" fill="#C15F3C"/>
+
+  <!-- Page -->
+  <path d="M16 14 H40 L48 22 V50 H16 Z" fill="rgba(255,253,250,0.97)"/>
+
+  <!-- Fold -->
+  <path d="M40 14 H48 V22 Z" fill="#7B3A22" opacity="0.82"/>
+
+  <!-- Fold crease -->
+  <line x1="40" y1="14" x2="48" y2="22" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+
+  <!-- Lines -->
+  <line x1="20" y1="30" x2="44" y2="30" stroke="#C15F3C" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
+  <line x1="20" y1="36" x2="40" y2="36" stroke="#C15F3C" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
+  <line x1="20" y1="42" x2="36" y2="42" stroke="#C15F3C" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
+</svg>
