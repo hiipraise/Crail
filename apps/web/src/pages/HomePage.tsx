@@ -1,38 +1,38 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { ArrowRight, TrendingUp, Star, Sparkles } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import StoryCard from '@/components/discovery/StoryCard'
-import StoryCardSkeleton from '@/components/discovery/StoryCardSkeleton'
-import StoryRow from '@/components/discovery/StoryRow'
-import { storiesApi } from '@/lib/api'
-import { useAuthStore } from '@/store/authStore'
-import type { StoryListItem } from '@/types'
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ArrowRight, TrendingUp, Star, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import StoryCard from "@/components/discovery/StoryCard";
+import StoryCardSkeleton from "@/components/discovery/StoryCardSkeleton";
+import StoryRow from "@/components/discovery/StoryRow";
+import { storiesApi } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+import type { StoryListItem } from "@/types";
 
 export default function HomePage() {
-  const { isAuthenticated, user } = useAuthStore()
-  const [featured, setFeatured] = useState<StoryListItem[]>([])
-  const [trending, setTrending] = useState<StoryListItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const { isAuthenticated, user } = useAuthStore();
+  const [featured, setFeatured] = useState<StoryListItem[]>([]);
+  const [trending, setTrending] = useState<StoryListItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
         const [featRes, trendRes] = await Promise.all([
           storiesApi.featured(),
-          storiesApi.trending()
-        ])
-        setFeatured(featRes.data.items ?? [])
-        setTrending(trendRes.data.items ?? [])
+          storiesApi.trending(),
+        ]);
+        setFeatured(featRes.data.items ?? []);
+        setTrending(trendRes.data.items ?? []);
       } catch {
         // use empty arrays on error
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    load()
-  }, [])
+    };
+    load();
+  }, []);
 
   return (
     <div className="pb-24 md:pb-8">
@@ -45,16 +45,14 @@ export default function HomePage() {
             transition={{ duration: 0.5 }}
             className="max-w-lg mx-auto"
           >
-            <div className="inline-flex items-center gap-2 bg-crail-50 border border-crail-100 rounded-full px-3 py-1 text-xs font-medium text-crail mb-4">
-              <Sparkles className="h-3 w-3" />
-              AI-powered stories
-            </div>
             <h1 className="font-serif text-4xl md:text-5xl font-bold text-foreground mb-3 leading-tight">
-              Read. Write.<br />
+              Read. Write.
+              <br />
               <span className="text-crail">Live stories.</span>
             </h1>
             <p className="text-cloudy-500 text-base mb-6 leading-relaxed">
-              Discover long-form fiction written by passionate authors. Read like a real book, write with AI assistance.
+              Discover long-form fiction written by passionate authors. Read
+              like a real book, write with AI assistance.
             </p>
             <div className="flex gap-3 justify-center">
               <Link to="/explore">
@@ -63,7 +61,9 @@ export default function HomePage() {
                 </Button>
               </Link>
               <Link to="/register">
-                <Button size="lg" variant="outline">Join free</Button>
+                <Button size="lg" variant="outline">
+                  Join free
+                </Button>
               </Link>
             </div>
           </motion.div>
@@ -74,9 +74,12 @@ export default function HomePage() {
       {isAuthenticated && user && (
         <div className="px-4 pt-6 pb-2">
           <h2 className="font-serif text-2xl font-semibold">
-            Welcome back, <span className="text-crail">{user.displayName.split(' ')[0]}</span>
+            Welcome back,{" "}
+            <span className="text-crail">{user.displayName.split(" ")[0]}</span>
           </h2>
-          <p className="text-cloudy-500 text-sm mt-1">Continue where you left off</p>
+          <p className="text-cloudy-500 text-sm mt-1">
+            Continue where you left off
+          </p>
         </div>
       )}
 
@@ -87,16 +90,22 @@ export default function HomePage() {
             <Star className="h-4 w-4 text-crail" />
             Featured
           </h2>
-          <Link to="/explore?sort=featured" className="text-sm text-crail flex items-center gap-1">
+          <Link
+            to="/explore?sort=featured"
+            className="text-sm text-crail flex items-center gap-1"
+          >
             See all <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {loading
-            ? Array.from({ length: 4 }).map((_, i) => <StoryCardSkeleton key={i} />)
-            : featured.map((story, i) => <StoryCard key={story._id} story={story} index={i} />)
-          }
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <StoryCardSkeleton key={i} />
+              ))
+            : featured.map((story, i) => (
+                <StoryCard key={story._id} story={story} index={i} />
+              ))}
         </div>
       </section>
 
@@ -107,7 +116,10 @@ export default function HomePage() {
             <TrendingUp className="h-4 w-4 text-crail" />
             Trending Now
           </h2>
-          <Link to="/explore?sort=trending" className="text-sm text-crail flex items-center gap-1">
+          <Link
+            to="/explore?sort=trending"
+            className="text-sm text-crail flex items-center gap-1"
+          >
             See all <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
@@ -115,14 +127,23 @@ export default function HomePage() {
         <div className="space-y-2">
           {loading
             ? Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-24 rounded-xl bg-white border border-cloudy-200 shimmer" />
+                <div
+                  key={i}
+                  className="h-24 rounded-xl bg-white border border-cloudy-200 shimmer"
+                />
               ))
-            : trending.slice(0, 5).map((story, i) => (
-                <StoryRow key={story._id} story={story} index={i} rank={i + 1} />
-              ))
-          }
+            : trending
+                .slice(0, 5)
+                .map((story, i) => (
+                  <StoryRow
+                    key={story._id}
+                    story={story}
+                    index={i}
+                    rank={i + 1}
+                  />
+                ))}
         </div>
       </section>
     </div>
-  )
+  );
 }

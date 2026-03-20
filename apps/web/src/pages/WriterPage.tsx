@@ -178,7 +178,7 @@ export default function WriterPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Chapter sidebar */}
-        <aside className="w-56 shrink-0 border-r border-cloudy-200 bg-white flex flex-col overflow-hidden hidden sm:flex">
+        <aside className="w-56 shrink-0 border-r border-cloudy-200 bg-white flex-col overflow-hidden hidden sm:flex">
           <div className="flex items-center justify-between px-3 py-2 border-b border-cloudy-100">
             <span className="text-xs font-semibold text-cloudy-400 uppercase tracking-wide">Chapters</span>
             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={addChapter}>
